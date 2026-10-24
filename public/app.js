@@ -475,8 +475,11 @@ function renderGamesList() {
                 <div class="game-item-header" style="background-image: url('${headerUrl}'), linear-gradient(135deg, #1e293b, #0f172a);"></div>
                 <div class="game-item-body">
                     <div>
-                        <div class="game-title" title="${game.name}">${game.name}</div>
-                        <div class="game-appid">ID: ${game.id} • ${game.playtimeHours !== undefined ? game.playtimeHours + ' saat oynandı' : ''}</div>
+                        <div class="game-title" title="${game.name}">
+                            ${game.name}
+                            ${game.isFamilyShared ? '<span class="family-badge">Aile Paylaşımı</span>' : ''}
+                        </div>
+                        <div class="game-appid">ID: ${game.id} • ${game.playtimeHours !== undefined ? (game.isFamilyShared && game.playtimeHours === 0 ? 'Paylaşılan Kütüphane' : game.playtimeHours + ' saat oynandı') : ''}</div>
                     </div>
                     <button class="btn btn-sm ${isSelected ? 'btn-danger' : 'btn-success'}" style="width: auto;">
                         ${isSelected ? 'Çıkar' : '+ Seç'}

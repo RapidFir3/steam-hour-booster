@@ -115,7 +115,8 @@ function createSteamClient() {
 
     client = new SteamUser({
         autoRelogin: true,
-        promptSteamGuardCode: false
+        promptSteamGuardCode: false,
+        enablePicsCache: true
     });
 
     client.on('loggedOn', async (details) => {
@@ -136,7 +137,7 @@ function createSteamClient() {
 
         startTicker();
 
-        // Automatically fetch games in user library
+        // Automatically fetch games in user library (including Family Sharing)
         await fetchUserLibrary();
         applyActiveGames();
     });
@@ -220,6 +221,40 @@ function createSteamClient() {
     return client;
 }
 
+async function getSteamWebCookies(steamClient) {
+    return new Promise((resolve) => {
+        steamClient.getWebCookies((err, cookies) => {
+            if (err || !cookies || !cookies.length) return resolve(null);
+            resolve(cookies);
+        });
+    });
+}
+
+async function getSteamFamiliesAppIds(cookies) {
+    if (!cookies || !cookies.length) return [];
+    try {
+        const cookieStr = cookies.join('; ');
+        const configResp = await fetch('https://store.steampowered.com/pointssummary/ajaxgetasyncconfig', {
+            headers: {
+                'Cookie': cookieStr,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            }
+        });
+        const configJson = await configResp.json();
+        const webapiToken = configJson?.data?.webapi_token || configJson?.webapi_token;
+        if (!webapiToken) return [];
+
+        const sharedUrl = `https://api.steampowered.com/IFamilyGroupsService/GetSharedLibraryApps/v1/?access_token=${encodeURIComponent(webapiToken)}&family_groupid=0&include_own=true&include_free=false`;
+        const sharedResp = await fetch(sharedUrl);
+        const sharedJson = await sharedResp.json();
+        const appList = (sharedJson?.response?.apps || []).map(a => Number(a.appid)).filter(id => !isNaN(id) && id > 0);
+        return appList;
+    } catch(e) {
+        console.error('Steam Families lookup error:', e.message);
+        return [];
+    }
+}
+
 async function fetchUserLibrary() {
     if (!client || !client.steamID) return [];
     try {
@@ -230,26 +265,86 @@ async function fetchUserLibrary() {
             includeFreeSub: true
         });
 
-        const apps = (res.apps || []).map(app => ({
+        let apps = (res.apps || []).map(app => ({
             id: app.appid,
             name: app.name || `App ${app.appid}`,
             playtimeHours: Math.round(((app.playtime_forever || 0) / 60) * 10) / 10,
+            isFamilyShared: false,
             icon: app.img_icon_url || `https://cdn.cloudflare.steamstatic.com/steam/apps/${app.appid}/header.jpg`
         }));
+
+        // Fetch Steam Families (Aile Paylaşımı) games
+        addLog('Steam Aile Paylaşımı (Steam Families) kütüphanesi taranıyor...', 'info');
+        try {
+            const cookies = await getSteamWebCookies(client);
+            let familyAppIds = [];
+            if (cookies) {
+                familyAppIds = await getSteamFamiliesAppIds(cookies);
+            }
+
+            // Also check packages in PICS cache if available
+            try {
+                if (client.getOwnedApps) {
+                    const picsOwned = client.getOwnedApps() || [];
+                    picsOwned.forEach(id => {
+                        if (!familyAppIds.includes(id)) familyAppIds.push(id);
+                    });
+                }
+            } catch(e) {}
+
+            const existingIds = new Set(apps.map(a => a.id));
+            const missingFamilyIds = familyAppIds.filter(id => !existingIds.has(id));
+
+            if (missingFamilyIds.length > 0) {
+                addLog(`Aile Paylaşımından ${missingFamilyIds.length} adet paylaşılan oyun bulundu! Bilgileri çekiliyor...`, 'info');
+                
+                // Fetch game titles in batches of 100 via PICS
+                for (let i = 0; i < missingFamilyIds.length; i += 100) {
+                    const chunk = missingFamilyIds.slice(i, i + 100);
+                    try {
+                        const productInfo = await client.getProductInfo(chunk, []);
+                        const productApps = productInfo.apps || {};
+                        chunk.forEach(id => {
+                            const info = productApps[id];
+                            const gameName = info?.appinfo?.common?.name;
+                            apps.push({
+                                id: id,
+                                name: gameName || `App #${id}`,
+                                playtimeHours: 0,
+                                isFamilyShared: true,
+                                icon: `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/header.jpg`
+                            });
+                        });
+                    } catch(chunkErr) {
+                        chunk.forEach(id => {
+                            apps.push({
+                                id: id,
+                                name: `App #${id}`,
+                                playtimeHours: 0,
+                                isFamilyShared: true,
+                                icon: `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/header.jpg`
+                            });
+                        });
+                    }
+                }
+            }
+        } catch(famErr) {
+            console.error('Family discovery error:', famErr);
+        }
 
         apps.sort((a, b) => b.playtimeHours - a.playtimeHours);
 
         boosterState.libraryGames = apps;
         savedConfig.libraryGames = apps;
 
-        // If user hasn't chosen games yet, auto-select their top games (up to 32)
+        // If user hasn't chosen games yet, auto-select top games (up to 32)
         if (!savedConfig.games || savedConfig.games.length === 0) {
             savedConfig.games = apps.slice(0, 32).map(a => ({ id: a.id, name: a.name }));
-            addLog(`Kütüphanenden en çok oynadığın ${savedConfig.games.length} oyun otomatik olarak seçildi!`, 'success');
+            addLog(`Kütüphanenden ${savedConfig.games.length} oyun otomatik olarak saat kasma listesine eklendi!`, 'success');
         }
 
         saveConfiguration();
-        addLog(`Kütüphanenden ${apps.length} adet oyun başarıyla yüklendi!`, 'success');
+        addLog(`Toplam ${apps.length} adet oyun (kendi oyunların + Aile Paylaşımı) başarıyla yüklendi!`, 'success');
         
         broadcast({ type: 'library', data: apps });
         updateBoosterState({ libraryGames: apps, activeGames: savedConfig.games });
