@@ -229,16 +229,77 @@
                     <div class="lib-tabs">
                         <button class="lib-tab-btn active" id="viewActiveBtn">Aktif Kasılacaklar (<span id="activeBadgeCount">0</span>)</button>
                         <button class="lib-tab-btn" id="viewLibraryBtn">📚 Tüm Kütüphanem (<span id="totalLibCount">0</span> Oyun)</button>
+                        <button class="lib-tab-btn" id="viewCardFarmBtn">🃏 Kart Çiftliği (<span id="totalCardsToFarm">0</span> Kart)</button>
                     </div>
 
-                    <div class="quick-lib-actions">
+                    <div class="quick-lib-actions" id="regularQuickActions">
                         <button class="btn btn-primary btn-sm" id="selectTop32Btn">🔥 En Çok Oynanan 32'yi Seç</button>
                         <button class="btn btn-ghost btn-sm" id="clearAllGamesBtn">Temizle</button>
+                    </div>
+
+                    <div class="quick-lib-actions hidden" id="cardFarmQuickActions">
+                        <button class="btn btn-warning btn-sm" id="startCardFarmBtnTop">🃏 Kart Düşürmeyi Başlat</button>
+                        <button class="btn btn-danger btn-sm hidden" id="stopCardFarmBtnTop">Durdur</button>
+                    </div>
+                </div>
+
+                <!-- Card Farming Dashboard Panel (Visible when on Card Farm tab) -->
+                <div id="cardFarmPanel" class="card-farm-panel hidden">
+                    <div class="card-farm-box">
+                        <div class="card-farm-stats">
+                            <div class="cf-stat-item">
+                                <span class="cf-label">Kart Hakkı Olan Oyunlar</span>
+                                <strong class="cf-value" id="cfGamesCount">0</strong>
+                            </div>
+                            <div class="cf-stat-item">
+                                <span class="cf-label">Toplam Kalan Kart</span>
+                                <strong class="cf-value text-accent" id="cfTotalDrops">0</strong>
+                            </div>
+                            <div class="cf-stat-item">
+                                <span class="cf-label">Bu Oturumda Düşen</span>
+                                <strong class="cf-value text-success" id="cfFarmedDrops">0</strong>
+                            </div>
+                        </div>
+
+                        <div class="cf-controls">
+                            <button class="btn btn-warning" id="startCardFarmBtn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                                Kart Düşürmeyi Başlat
+                            </button>
+                            <button class="btn btn-danger hidden" id="stopCardFarmBtn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <rect x="6" y="6" width="12" height="12"></rect>
+                                </svg>
+                                Kart Çiftliğini Durdur
+                            </button>
+                            <button class="btn btn-secondary btn-sm" id="checkDropsNowBtn" title="Steam'den kart düşüşünü hemen kontrol et">
+                                ⚡ Şimdi Kontrol Et
+                            </button>
+                            <button class="btn btn-ghost btn-sm" id="rescanBadgesBtn" title="Rozetleri Yeniden Tara">
+                                🔄 Rozetleri Tara
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Active Farming Game Status Indicator -->
+                    <div id="activeFarmingBox" class="active-farming-box hidden">
+                        <div class="af-pulse"></div>
+                        <div class="af-info">
+                            <div class="af-title">ŞU ANDA KART KASILAN OYUN</div>
+                            <div class="af-game-name" id="afCurrentGameName">-</div>
+                            <div class="af-game-meta" id="afCurrentGameMeta">Kalan Kart: 0 • Oynama Süresi: 0.0s</div>
+                        </div>
+                        <div class="af-badge">
+                            <span class="af-badge-label">OTOMATİK ÇİFTLİK</span>
+                            <span class="af-badge-status">1'er 1'er Hızlı Düşürme Aktif</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Search within Library or Add AppID -->
-                <div class="add-game-section">
+                <div class="add-game-section" id="addGameSection">
                     <div class="search-input-wrapper">
                         <input type="text" id="gameSearchInput" placeholder="Kütüphanendeki oyunları ara veya yeni App ID gir...">
                         <div id="searchResults" class="search-results hidden"></div>

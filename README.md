@@ -12,6 +12,7 @@ Designed to be dead simple: scan the QR code with your Steam Mobile app, pick th
 
 ### Features
 - **Parallel Idling:** Idles up to 32 games at the same time (Steam's client limit). 1 hour running = 1 hour added to every selected game.
+- **Card Farming Mode (Kart Çiftliği):** Scrapes your Steam badges to find games with remaining trading card drops. Automatically idles them one by one (or pre-idles to 2h) for maximum drop rates, detects when cards drop, and advances to the next game when done.
 - **Steam Mobile QR Login:** No need to type passwords or 2FA codes manually. Just point your Steam mobile app camera and approve. Saves session token locally so you don't scan every time.
 - **Auto Library Fetch:** Grabs your owned games with titles and box art automatically upon login—no manual AppID hunting.
 - **Smart Pause & Auto-Resume:** If you open a game on your PC, the booster detects it, pauses gracefully so you don't get disconnected, and resumes once you quit your game.
@@ -44,6 +45,7 @@ Kullanımı olabildiğince pratik tutuldu: Steam Mobile uygulamasından QR kodun
 
 ### Özellikler
 - **Eşzamanlı Saat Kasma:** Steam protokolünün izin verdiği maksimum sınır olan 32 oyuna kadar aynı anda saat kasar (1 saat açık kaldığında seçtiğin tüm oyunlara 1'er saat eklenir).
+- **Otomatik Kart Çiftliği (Card Farming):** Steam rozetlerini tarayarak henüz kart hakkı bitmemiş oyunları tespit eder. Maksimum düşme hızı için oyunları sırayla tek tek çalıştırır (veya 2 saate tamamlar), kartlar düştükçe algılar ve bitince sıradaki oyuna geçer.
 - **Steam Mobile QR Girişi:** Şifre veya 2FA kodu yazmaya gerek kalmadan telefonundaki Steam uygulamasından QR okutarak tek tıkla bağlanır. Oturum anahtarını yerel olarak kaydeder, her seferinde tekrar okutmak gerekmez.
 - **Otomatik Kütüphane Çekme:** Giriş yaptığında hesabındaki oyunlar afişleri ve isimleriyle birlikte otomatik listelenir. Tek tek App ID aramakla uğraşmazsın.
 - **Akıllı Duraklatma (Smart Auto-Resume):** Sen kendi bilgisayarından bir oyuna girdiğinde booster bunu algılar ve seni oyundan atmamak için geçici olarak duraklar. Sen oyundan çıktığında yaklaşık 30 saniye içinde otomatik olarak kaldığı yerden saat kasmaya devam eder.

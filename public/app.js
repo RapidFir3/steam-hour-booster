@@ -69,12 +69,32 @@ const addGameBtn = document.getElementById('addGameBtn');
 // Library Elements
 const viewActiveBtn = document.getElementById('viewActiveBtn');
 const viewLibraryBtn = document.getElementById('viewLibraryBtn');
+const viewCardFarmBtn = document.getElementById('viewCardFarmBtn');
 const activeBadgeCount = document.getElementById('activeBadgeCount');
 const totalLibCount = document.getElementById('totalLibCount');
+const totalCardsToFarm = document.getElementById('totalCardsToFarm');
 const selectTop32Btn = document.getElementById('selectTop32Btn');
 const clearAllGamesBtn = document.getElementById('clearAllGamesBtn');
 const refreshLibBtn = document.getElementById('refreshLibBtn');
 const emptyLibBanner = document.getElementById('emptyLibBanner');
+const regularQuickActions = document.getElementById('regularQuickActions');
+const cardFarmQuickActions = document.getElementById('cardFarmQuickActions');
+
+// Card Farm Elements
+const cardFarmPanel = document.getElementById('cardFarmPanel');
+const cfGamesCount = document.getElementById('cfGamesCount');
+const cfTotalDrops = document.getElementById('cfTotalDrops');
+const cfFarmedDrops = document.getElementById('cfFarmedDrops');
+const startCardFarmBtn = document.getElementById('startCardFarmBtn');
+const startCardFarmBtnTop = document.getElementById('startCardFarmBtnTop');
+const stopCardFarmBtn = document.getElementById('stopCardFarmBtn');
+const stopCardFarmBtnTop = document.getElementById('stopCardFarmBtnTop');
+const checkDropsNowBtn = document.getElementById('checkDropsNowBtn');
+const rescanBadgesBtn = document.getElementById('rescanBadgesBtn');
+const activeFarmingBox = document.getElementById('activeFarmingBox');
+const afCurrentGameName = document.getElementById('afCurrentGameName');
+const afCurrentGameMeta = document.getElementById('afCurrentGameMeta');
+const addGameSection = document.getElementById('addGameSection');
 
 const terminalWindow = document.getElementById('terminalWindow');
 const clearLogsBtn = document.getElementById('clearLogsBtn');
@@ -231,6 +251,35 @@ function renderState() {
     gameLimitCount.textContent = activeCount;
     activeBadgeCount.textContent = activeCount;
     totalLibCount.textContent = (currentState.libraryGames || config.libraryGames || []).length;
+
+    // Card Farming State updates
+    const cf = currentState.cardFarming || {};
+    totalCardsToFarm.textContent = cf.totalDropsRemaining || 0;
+    cfGamesCount.textContent = (cf.gamesWithDrops || []).length;
+    cfTotalDrops.textContent = cf.totalDropsRemaining || 0;
+    cfFarmedDrops.textContent = cf.farmedThisSession || 0;
+
+    if (cf.active) {
+        startCardFarmBtn.classList.add('hidden');
+        startCardFarmBtnTop.classList.add('hidden');
+        stopCardFarmBtn.classList.remove('hidden');
+        stopCardFarmBtnTop.classList.remove('hidden');
+        activeFarmingBox.classList.remove('hidden');
+
+        if (cf.currentGame) {
+            afCurrentGameName.textContent = cf.currentGame.name;
+            afCurrentGameMeta.textContent = `Kalan Kart: ${cf.currentGame.cardsRemaining} • Oynama Süresi: ${cf.currentGame.playtimeHours}s`;
+            if (currentState.status === 'running') {
+                statusText.textContent = `🃏 Kart Kasılıyor: ${cf.currentGame.name}`;
+            }
+        }
+    } else {
+        startCardFarmBtn.classList.remove('hidden');
+        startCardFarmBtnTop.classList.remove('hidden');
+        stopCardFarmBtn.classList.add('hidden');
+        stopCardFarmBtnTop.classList.add('hidden');
+        activeFarmingBox.classList.add('hidden');
+    }
 }
 
 // Tab navigation for Auth
@@ -248,11 +297,16 @@ tabPassBtn.addEventListener('click', () => {
     qrTab.classList.add('hidden');
 });
 
-// View switching between Active Games and Library
+// View switching between Active Games, Library and Card Farm
 viewActiveBtn.addEventListener('click', () => {
     currentTab = 'active';
     viewActiveBtn.classList.add('active');
     viewLibraryBtn.classList.remove('active');
+    viewCardFarmBtn.classList.remove('active');
+    cardFarmPanel.classList.add('hidden');
+    regularQuickActions.classList.remove('hidden');
+    cardFarmQuickActions.classList.add('hidden');
+    addGameSection.classList.remove('hidden');
     renderGamesList();
 });
 
@@ -260,6 +314,23 @@ viewLibraryBtn.addEventListener('click', () => {
     currentTab = 'library';
     viewLibraryBtn.classList.add('active');
     viewActiveBtn.classList.remove('active');
+    viewCardFarmBtn.classList.remove('active');
+    cardFarmPanel.classList.add('hidden');
+    regularQuickActions.classList.remove('hidden');
+    cardFarmQuickActions.classList.add('hidden');
+    addGameSection.classList.remove('hidden');
+    renderGamesList();
+});
+
+viewCardFarmBtn.addEventListener('click', () => {
+    currentTab = 'cardfarm';
+    viewCardFarmBtn.classList.add('active');
+    viewActiveBtn.classList.remove('active');
+    viewLibraryBtn.classList.remove('active');
+    cardFarmPanel.classList.remove('hidden');
+    regularQuickActions.classList.add('hidden');
+    cardFarmQuickActions.classList.remove('hidden');
+    addGameSection.classList.add('hidden');
     renderGamesList();
 });
 
@@ -446,6 +517,74 @@ function renderGamesList() {
             });
         });
 
+    } else if (currentTab === 'cardfarm') {
+        // Render Card Farming Games
+        const cf = currentState.cardFarming || {};
+        const farmGames = cf.gamesWithDrops || [];
+        
+        let filtered = farmGames;
+        if (searchTerm) {
+            filtered = farmGames.filter(g => (g.name || '').toLowerCase().includes(searchTerm) || String(g.id).includes(searchTerm));
+        }
+
+        if (filtered.length === 0) {
+            gamesGrid.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted);">
+                    ${cf.scanning 
+                        ? '🃏 Steam rozetleri ve kart hakları taranıyor, lütfen bekleyin...' 
+                        : 'Hesabında henüz kart düşürme hakkı kalan oyun bulunamadı veya henüz taranmadı.<br><br><button class="btn btn-secondary btn-sm" id="inlineScanBadgesBtn">🔄 Rozetleri Yeniden Tara</button>'}
+                </div>
+            `;
+            const inlineBtn = document.getElementById('inlineScanBadgesBtn');
+            if (inlineBtn) inlineBtn.addEventListener('click', triggerBadgeRescan);
+            return;
+        }
+
+        filtered.forEach(game => {
+            const isFarmingNow = cf.active && cf.currentGame && cf.currentGame.id === game.id;
+            const item = document.createElement('div');
+            item.className = `game-item in-active-list ${isFarmingNow ? 'farming-active' : ''}`;
+
+            const headerUrl = `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.id}/header.jpg`;
+
+            item.innerHTML = `
+                ${isFarmingNow ? '<span class="game-tag-active" style="background:#10b981; color:#fff;">ŞU AN KASILIYOR</span>' : ''}
+                <div class="game-item-header" style="background-image: url('${headerUrl}'), linear-gradient(135deg, #1e293b, #0f172a);">
+                    <div class="card-drops-badge">🎴 ${game.cardsRemaining} Kart Kaldı</div>
+                </div>
+                <div class="game-item-body">
+                    <div>
+                        <div class="game-title" title="${game.name}">${game.name}</div>
+                        <div class="game-appid">ID: ${game.id} • ${game.playtimeHours}s oynandı ${game.playtimeHours < 2.0 ? '⚠️ (Önce 2s yapılacak)' : '✓ (Hızlı Düşme Modu)'}</div>
+                    </div>
+                    <button class="btn btn-sm ${isFarmingNow ? 'btn-danger' : 'btn-warning'} select-farm-game-btn" style="width: auto;" data-id="${game.id}">
+                        ${isFarmingNow ? 'Aktif' : 'Hemen Kas'}
+                    </button>
+                </div>
+            `;
+
+            gamesGrid.appendChild(item);
+        });
+
+        document.querySelectorAll('.select-farm-game-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const id = parseInt(e.currentTarget.dataset.id);
+                try {
+                    await fetch('/api/card-farming/select-game', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ appId: id })
+                    });
+                    if (!cf.active) {
+                        await fetch('/api/card-farming/start', { method: 'POST' });
+                    }
+                } catch(err) {
+                    alert('Oyun seçilemedi.');
+                }
+            });
+        });
+
     } else {
         // Render Full Account Library
         let filtered = library;
@@ -625,6 +764,84 @@ customStatusInput.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// Card Farming Action Handlers
+async function startCardFarmingAction() {
+    startCardFarmBtn.disabled = true;
+    startCardFarmBtnTop.disabled = true;
+    try {
+        const res = await fetch('/api/card-farming/start', { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.error || 'Kart çiftliği başlatılamadı.');
+        }
+    } catch(e) {
+        alert('Sunucu hatası.');
+    } finally {
+        startCardFarmBtn.disabled = false;
+        startCardFarmBtnTop.disabled = false;
+    }
+}
+
+async function stopCardFarmingAction() {
+    stopCardFarmBtn.disabled = true;
+    stopCardFarmBtnTop.disabled = true;
+    try {
+        await fetch('/api/card-farming/stop', { method: 'POST' });
+    } catch(e) {
+        alert('Durdurma hatası.');
+    } finally {
+        stopCardFarmBtn.disabled = false;
+        stopCardFarmBtnTop.disabled = false;
+    }
+}
+
+if (startCardFarmBtn) startCardFarmBtn.addEventListener('click', startCardFarmingAction);
+if (startCardFarmBtnTop) startCardFarmBtnTop.addEventListener('click', startCardFarmingAction);
+if (stopCardFarmBtn) stopCardFarmBtn.addEventListener('click', stopCardFarmingAction);
+if (stopCardFarmBtnTop) stopCardFarmBtnTop.addEventListener('click', stopCardFarmingAction);
+
+if (checkDropsNowBtn) {
+    checkDropsNowBtn.addEventListener('click', async () => {
+        checkDropsNowBtn.disabled = true;
+        checkDropsNowBtn.textContent = 'Kontrol Ediliyor...';
+        try {
+            const res = await fetch('/api/card-farming/check-now', { method: 'POST' });
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.error || 'Kontrol edilemedi.');
+            }
+        } catch(e) {
+            alert('Kontrol isteği başarısız oldu.');
+        } finally {
+            checkDropsNowBtn.disabled = false;
+            checkDropsNowBtn.textContent = '⚡ Şimdi Kontrol Et';
+        }
+    });
+}
+
+async function triggerBadgeRescan() {
+    if (rescanBadgesBtn) {
+        rescanBadgesBtn.disabled = true;
+        rescanBadgesBtn.textContent = 'Taranıyor...';
+    }
+    try {
+        const res = await fetch('/api/card-farming/scan', { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.error || 'Rozetler taranamadı.');
+        }
+    } catch(e) {
+        alert('Rozet tarama isteği başarısız.');
+    } finally {
+        if (rescanBadgesBtn) {
+            rescanBadgesBtn.disabled = false;
+            rescanBadgesBtn.textContent = '🔄 Rozetleri Tara';
+        }
+    }
+}
+
+if (rescanBadgesBtn) rescanBadgesBtn.addEventListener('click', triggerBadgeRescan);
 
 // Initialize on start
 initWebSocket();

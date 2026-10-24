@@ -46,6 +46,18 @@ function saveConfiguration() {
 // Booster runtime state
 let client = null;
 let currentLoginSession = null;
+let cardFarmingInterval = null;
+
+let cardFarmingState = {
+    active: false,
+    scanning: false,
+    gamesWithDrops: [],
+    currentGame: null,
+    totalDropsRemaining: 0,
+    farmedThisSession: 0,
+    lastCheckTime: null
+};
+
 let boosterState = {
     status: 'idle', // 'idle' | 'waiting_qr' | 'logging_in' | 'guard_needed' | 'running' | 'error'
     error: null,
@@ -55,6 +67,7 @@ let boosterState = {
     activeGames: savedConfig.games || [],
     libraryGames: savedConfig.libraryGames || [],
     customStatus: savedConfig.customStatus,
+    cardFarming: cardFarmingState,
     startTime: null,
     elapsedSeconds: 0,
     qrDataUrl: null,
@@ -149,6 +162,9 @@ function createSteamClient() {
         // Automatically fetch games in user library (including Family Sharing)
         await fetchUserLibrary();
         applyActiveGames();
+
+        // Scan badges in background for card farming
+        scanUserBadges(client).catch(e => console.error('Initial badge scan error:', e));
     });
 
     client.on('webSession', (sessionID, cookies) => {
@@ -400,6 +416,11 @@ async function fetchUserLibrary() {
 function applyActiveGames() {
     if (!client || !client.steamID) return;
 
+    if (cardFarmingState.active) {
+        applyCardFarmingGame();
+        return;
+    }
+
     const gameIds = savedConfig.games.map(g => Number(g.id)).filter(id => !isNaN(id) && id > 0);
     const targetGames = gameIds.slice(0, 32);
 
@@ -410,6 +431,231 @@ function applyActiveGames() {
     client.gamesPlayed(targetGames);
     updateBoosterState({ activeGames: savedConfig.games });
     addLog(`${gameIds.length} oyun için saat kasma aktif edildi: [${savedConfig.games.map(g => g.name || g.id).join(', ')}]`, 'success');
+}
+
+// ==========================================
+// CARD FARMING ENGINE (KART ÇİFTLİĞİ)
+// ==========================================
+
+async function scanUserBadges(steamClient) {
+    if (!steamClient || !steamClient.steamID) return [];
+    try {
+        cardFarmingState.scanning = true;
+        updateBoosterState({ cardFarming: cardFarmingState });
+        addLog('Steam rozetleri ve kart düşürme hakları taranıyor...', 'info');
+
+        const cookies = await getSteamWebCookies(steamClient);
+        if (!cookies) {
+            addLog('Steam web oturumu alınamadığı için rozetler taranamadı.', 'warning');
+            cardFarmingState.scanning = false;
+            updateBoosterState({ cardFarming: cardFarmingState });
+            return [];
+        }
+
+        const cookieStr = cookies.join('; ') + '; Steam_Language=english';
+        const steamId = steamClient.steamID.getSteamID64();
+
+        const allGamesWithDrops = [];
+        let page = 1;
+
+        while (page <= 25) {
+            const resp = await fetch(`https://steamcommunity.com/profiles/${steamId}/badges/?p=${page}&l=english`, {
+                headers: {
+                    'Cookie': cookieStr,
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+            const html = await resp.text();
+            const badgeRows = html.split(/class=["']badge_row\s+/);
+            if (badgeRows.length <= 1) break;
+
+            for (let i = 1; i < badgeRows.length; i++) {
+                const row = badgeRows[i];
+                const dropMatch = row.match(/(\d+)\s+card drops?\s+remaining/i);
+                if (!dropMatch) continue;
+
+                const cardsRemaining = parseInt(dropMatch[1], 10);
+                const cardLinkMatch = row.match(/gamecards\/(\d+)/);
+                const appId = cardLinkMatch ? parseInt(cardLinkMatch[1], 10) : null;
+                if (!appId) continue;
+
+                const playMatch = row.match(/([0-9\.,]+)\s+hrs on record/i);
+                const playtimeHours = playMatch ? parseFloat(playMatch[1].replace(',', '.')) : 0;
+
+                const titleMatch = row.match(/ShowCardDropInfo\(\s*&quot;(.*?)&quot;/i) 
+                    || row.match(/<div class="badge_title">\s*([^<]+?)\s*&nbsp;/i)
+                    || row.match(/<div class="badge_title">([\s\S]*?)<\/div>/i);
+                
+                let name = `App ${appId}`;
+                if (titleMatch) {
+                    name = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+                } else {
+                    const libFound = (savedConfig.libraryGames || []).find(g => g.id === appId);
+                    if (libFound) name = libFound.name;
+                }
+
+                allGamesWithDrops.push({
+                    id: appId,
+                    name,
+                    cardsRemaining,
+                    playtimeHours,
+                    icon: `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/header.jpg`
+                });
+            }
+
+            if (!html.includes(`?p=${page + 1}`) && !html.includes(`&amp;p=${page + 1}`)) {
+                break;
+            }
+            page++;
+        }
+
+        const totalDrops = allGamesWithDrops.reduce((sum, g) => sum + g.cardsRemaining, 0);
+        cardFarmingState.gamesWithDrops = allGamesWithDrops;
+        cardFarmingState.totalDropsRemaining = totalDrops;
+        cardFarmingState.scanning = false;
+
+        addLog(`Rozet taraması tamamlandı! Kart düşürme hakkı olan ${allGamesWithDrops.length} oyun ve toplam ${totalDrops} kart bulundu.`, 'success');
+        updateBoosterState({ cardFarming: cardFarmingState });
+        return allGamesWithDrops;
+    } catch(err) {
+        console.error('Badge scan error:', err);
+        addLog(`Rozet tarama hatası: ${err.message}`, 'warning');
+        cardFarmingState.scanning = false;
+        updateBoosterState({ cardFarming: cardFarmingState });
+        return [];
+    }
+}
+
+async function checkSingleGameDrops(steamClient, appId) {
+    if (!steamClient || !steamClient.steamID || !appId) return null;
+    try {
+        const cookies = await getSteamWebCookies(steamClient);
+        if (!cookies) return null;
+
+        const cookieStr = cookies.join('; ') + '; Steam_Language=english';
+        const steamId = steamClient.steamID.getSteamID64();
+
+        const resp = await fetch(`https://steamcommunity.com/profiles/${steamId}/gamecards/${appId}/?l=english`, {
+            headers: {
+                'Cookie': cookieStr,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+        const html = await resp.text();
+        const dropMatch = html.match(/(\d+)\s+card drops?\s+remaining/i);
+        if (dropMatch) {
+            return parseInt(dropMatch[1], 10);
+        }
+        return 0;
+    } catch(e) {
+        console.error('Error checking single game drops:', e.message);
+        return null;
+    }
+}
+
+function applyCardFarmingGame() {
+    if (!client || !client.steamID || !cardFarmingState.active) return;
+    if (!cardFarmingState.currentGame) {
+        if (cardFarmingState.gamesWithDrops.length > 0) {
+            cardFarmingState.currentGame = cardFarmingState.gamesWithDrops[0];
+        } else {
+            addLog('🏆 Tebrikler! Tüm kartlar düşürüldü, kart çiftliği tamamlandı!', 'success');
+            stopCardFarming();
+            return;
+        }
+    }
+
+    const game = cardFarmingState.currentGame;
+    const targets = [game.id];
+    if (savedConfig.customStatus && savedConfig.customStatus.trim().length > 0) {
+        targets.unshift(`${savedConfig.customStatus.trim()} • 🃏 Kart Kasılıyor`);
+    } else {
+        targets.unshift(`🃏 Kart Kasılıyor: ${game.name}`);
+    }
+
+    client.gamesPlayed(targets);
+    addLog(`🃏 Kart Çiftliği Devrede: "${game.name}" çalıştırılıyor (${game.cardsRemaining} kart hakkı kaldı).`, 'info');
+    updateBoosterState({ cardFarming: cardFarmingState });
+}
+
+async function checkCardFarmingTick() {
+    if (!client || !client.steamID || !cardFarmingState.active || !cardFarmingState.currentGame) return;
+
+    const game = cardFarmingState.currentGame;
+    addLog(`🃏 "${game.name}" için kart kontrolü yapılıyor...`, 'info');
+    cardFarmingState.lastCheckTime = Date.now();
+
+    const remaining = await checkSingleGameDrops(client, game.id);
+    if (remaining === null) {
+        addLog('Kart durumu kontrol edilirken bağlantı hatası oluştu, bir sonraki döngüde tekrar denenecek.', 'warning');
+        return;
+    }
+
+    if (remaining < game.cardsRemaining) {
+        const droppedCount = game.cardsRemaining - remaining;
+        cardFarmingState.farmedThisSession += droppedCount;
+        game.cardsRemaining = remaining;
+        cardFarmingState.totalDropsRemaining = Math.max(0, cardFarmingState.totalDropsRemaining - droppedCount);
+
+        addLog(`🎉 TEBRİKLER! "${game.name}" için ${droppedCount} kart düştü! (Kalan: ${remaining} kart)`, 'success');
+    }
+
+    if (remaining === 0) {
+        addLog(`✅ "${game.name}" oyununun tüm kartları tamamlandı! Sıradaki oyuna geçiliyor...`, 'success');
+        cardFarmingState.gamesWithDrops = cardFarmingState.gamesWithDrops.filter(g => g.id !== game.id);
+        if (cardFarmingState.gamesWithDrops.length > 0) {
+            cardFarmingState.currentGame = cardFarmingState.gamesWithDrops[0];
+            applyCardFarmingGame();
+        } else {
+            cardFarmingState.currentGame = null;
+            addLog('🏆 Kütüphanendeki tüm oyunların kartları başarıyla düşürüldü! Normal saat kasmaya dönülüyor.', 'success');
+            stopCardFarming();
+        }
+    } else {
+        updateBoosterState({ cardFarming: cardFarmingState });
+    }
+}
+
+function startCardFarming() {
+    if (!client || !client.steamID) {
+        addLog('Kart çiftliğini başlatmak için önce Steam girişi yapılmalıdır.', 'error');
+        return;
+    }
+
+    if (!cardFarmingState.gamesWithDrops || cardFarmingState.gamesWithDrops.length === 0) {
+        addLog('Kart hakkı olan oyunlar taranıyor...', 'info');
+        scanUserBadges(client).then(games => {
+            if (games.length > 0) {
+                startCardFarming();
+            } else {
+                addLog('Kütüphanende kart hakkı kalan oyun bulunamadı.', 'info');
+            }
+        });
+        return;
+    }
+
+    cardFarmingState.active = true;
+    if (!cardFarmingState.currentGame) {
+        cardFarmingState.currentGame = cardFarmingState.gamesWithDrops[0];
+    }
+    applyCardFarmingGame();
+
+    if (cardFarmingInterval) clearInterval(cardFarmingInterval);
+    cardFarmingInterval = setInterval(checkCardFarmingTick, 10 * 60 * 1000);
+    updateBoosterState({ cardFarming: cardFarmingState });
+}
+
+function stopCardFarming() {
+    cardFarmingState.active = false;
+    if (cardFarmingInterval) {
+        clearInterval(cardFarmingInterval);
+        cardFarmingInterval = null;
+    }
+    updateBoosterState({ cardFarming: cardFarmingState });
+    addLog('Kart çiftliği durduruldu.', 'info');
+    if (boosterState.status === 'running') {
+        applyActiveGames();
+    }
 }
 
 // REST Endpoints
@@ -606,6 +852,7 @@ app.post('/api/forget-session', (req, res) => {
 // STOP BOOSTER
 app.post('/api/stop', (req, res) => {
     stopTicker();
+    stopCardFarming();
     if (currentLoginSession) {
         try { currentLoginSession.cancelLoginAttempt(); } catch(e) {}
     }
@@ -616,7 +863,7 @@ app.post('/api/stop', (req, res) => {
         } catch(e) {}
     }
 
-    addLog('Saat kasma işlemi durduruldu ve Steam çıkışı yapıldı.', 'info');
+    addLog('Saat kasma ve kart çiftliği durduruldu, Steam çıkışı yapıldı.', 'info');
     updateBoosterState({
         status: 'idle',
         error: null,
@@ -626,6 +873,55 @@ app.post('/api/stop', (req, res) => {
     });
 
     res.json({ success: true });
+});
+
+// CARD FARMING ENDPOINTS
+app.get('/api/card-farming', (req, res) => {
+    res.json(cardFarmingState);
+});
+
+app.post('/api/card-farming/scan', async (req, res) => {
+    if (!client || !client.steamID) {
+        return res.status(400).json({ error: 'Önce Steam girişi yapılmalıdır.' });
+    }
+    const games = await scanUserBadges(client);
+    res.json({ success: true, count: games.length, games });
+});
+
+app.post('/api/card-farming/start', (req, res) => {
+    if (!client || !client.steamID) {
+        return res.status(400).json({ error: 'Önce Steam girişi yapılmalıdır.' });
+    }
+    startCardFarming();
+    res.json({ success: true, state: cardFarmingState });
+});
+
+app.post('/api/card-farming/stop', (req, res) => {
+    stopCardFarming();
+    res.json({ success: true, state: cardFarmingState });
+});
+
+app.post('/api/card-farming/check-now', async (req, res) => {
+    if (!client || !client.steamID) {
+        return res.status(400).json({ error: 'Önce Steam girişi yapılmalıdır.' });
+    }
+    await checkCardFarmingTick();
+    res.json({ success: true, state: cardFarmingState });
+});
+
+app.post('/api/card-farming/select-game', (req, res) => {
+    const { appId } = req.body;
+    const found = cardFarmingState.gamesWithDrops.find(g => g.id === Number(appId));
+    if (!found) {
+        return res.status(404).json({ error: 'Oyun kart listesinde bulunamadı.' });
+    }
+    cardFarmingState.currentGame = found;
+    if (cardFarmingState.active) {
+        applyCardFarmingGame();
+    } else {
+        updateBoosterState({ cardFarming: cardFarmingState });
+    }
+    res.json({ success: true, currentGame: found });
 });
 
 app.get('/api/state', (req, res) => {

@@ -928,6 +928,164 @@ input:focus {
     display: none !important;
 }
 
+/* Card Farming Dashboard Styles */
+.card-farm-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.card-farm-box {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(217, 119, 6, 0.03));
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.05);
+}
+
+.card-farm-stats {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.cf-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cf-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+}
+
+.cf-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.cf-value.text-accent {
+    color: #fbbf24;
+}
+
+.cf-value.text-success {
+    color: #34d399;
+}
+
+.cf-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.active-farming-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--radius-md);
+    position: relative;
+    overflow: hidden;
+    gap: 16px;
+}
+
+.af-pulse {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #10b981;
+    box-shadow: 0 0 12px #10b981;
+    animation: afGlow 2s infinite ease-in-out;
+}
+
+@keyframes afGlow {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.af-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-left: 6px;
+}
+
+.af-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #34d399;
+    letter-spacing: 0.06em;
+}
+
+.af-game-name {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.af-game-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.af-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.af-badge-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.af-badge-status {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.card-drops-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: #f59e0b;
+    color: #0f172a;
+    font-weight: 800;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.game-card.farming-active {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.3) !important;
+}
+
 @media (max-width: 1024px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
