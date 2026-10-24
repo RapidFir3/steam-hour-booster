@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Hour Booster ⚡ (QR Kod Destekli)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="app-container">
+        <!-- Top Navbar -->
+        <header class="navbar">
+            <div class="brand">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="url(#boltGrad)" stroke="none"/>
+                        <defs>
+                            <linearGradient id="boltGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#00f2fe"/>
+                                <stop offset="100%" stop-color="#4facfe"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="brand-title">Steam Hour Booster</h1>
+                    <span class="brand-subtitle">Simultaneous Multi-Game Idler • Steam Mobile QR</span>
+                </div>
+            </div>
+
+            <div class="status-badge" id="statusBadge">
+                <span class="status-dot"></span>
+                <span class="status-text" id="statusText">Boşta (Durduruldu)</span>
+            </div>
+        </header>
+
+        <!-- Main Grid Layout -->
+        <main class="dashboard-grid">
+            <!-- Left Column: Controls & Account -->
+            <section class="card auth-card">
+                <h2 class="card-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Steam Girişi
+                </h2>
+
+                <!-- Auth Navigation Tabs -->
+                <div class="auth-tabs" id="authTabs">
+                    <button class="tab-btn active" data-tab="qrTab" id="tabQrBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        Steam Mobile QR (Önerilen)
+                    </button>
+                    <button class="tab-btn" data-tab="passTab" id="tabPassBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        Şifre ile
+                    </button>
+                </div>
+
+                <!-- Saved Session Box (if previously logged in) -->
+                <div id="savedSessionBlock" class="saved-session-box hidden">
+                    <div class="saved-session-header">
+                        <span class="saved-badge">✓ Kayıtlı Oturum</span>
+                        <button class="btn btn-ghost btn-sm" id="forgetSessionBtn" title="Oturumu Sil">Unut</button>
+                    </div>
+                    <p class="saved-account-name">Hesap: <strong id="savedAccountName">Steam User</strong></p>
+                    <button class="btn btn-primary" id="startSavedBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Kayıtlı Oturumla Başlat
+                    </button>
+                    <div class="divider"><span>veya yeni giriş yap</span></div>
+                </div>
+
+                <!-- Tab 1: Steam QR Login -->
+                <div id="qrTab" class="tab-content active">
+                    <div class="qr-container">
+                        <div class="qr-box" id="qrBox">
+                            <div class="qr-placeholder" id="qrPlaceholder">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <rect x="3" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="14" width="7" height="7"></rect>
+                                    <rect x="3" y="14" width="7" height="7"></rect>
+                                </svg>
+                                <span>QR Kodu Oluştur</span>
+                            </div>
+                            <img id="qrImage" class="qr-img hidden" alt="Steam Mobile QR">
+                        </div>
+
+                        <div class="qr-instructions">
+                            <ol>
+                                <li><strong>Steam Mobile</strong> uygulamasını aç.</li>
+                                <li>Orta kısımdaki <strong>Steam Guard</strong> simgesine dokun.</li>
+                                <li><strong>"QR Kodu Tara"</strong> seçeneğini seçip kamerayı bu koda tut ve onayla.</li>
+                            </ol>
+                        </div>
+
+                        <button class="btn btn-primary" id="generateQrBtn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                            </svg>
+                            QR Kodunu Göster / Yenile
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Password Login (Fallback) -->
+                <div id="passTab" class="tab-content hidden">
+                    <div class="auth-fields">
+                        <div class="input-group">
+                            <label for="usernameInput">Steam Kullanıcı Adı</label>
+                            <input type="text" id="usernameInput" placeholder="steam_kullanici_adi" autocomplete="username">
+                        </div>
+                        <div class="input-group">
+                            <label for="passwordInput">Steam Şifresi</label>
+                            <input type="password" id="passwordInput" placeholder="••••••••••••" autocomplete="current-password">
+                        </div>
+                        
+                        <button class="btn btn-secondary" id="startPasswordBtn">
+                            Şifre ile Giriş Yap
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Custom Status Setting -->
+                <div class="input-group" style="margin-top: 10px;">
+                    <label for="customStatusInput">Özel Durum Başlığı (Steam Dışı Oyun Metni)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="customStatusInput" placeholder="Örn: ⚡ AFK Saat Kasılıyor" style="flex: 1;">
+                        <button class="btn btn-secondary btn-sm" id="saveStatusBtn" style="width: auto; white-space: nowrap;">Uygula</button>
+                    </div>
+                </div>
+
+                <!-- Active Session State (Hidden until running) -->
+                <div id="activeSessionBlock" class="active-session hidden">
+                    <div class="session-user-info">
+                        <div class="avatar-ring">
+                            <div class="avatar-img" id="userAvatar">🎮</div>
+                        </div>
+                        <div>
+                            <div class="session-name" id="sessionUsername">Kullanıcı</div>
+                            <div class="session-meta">Giriş yapıldı • Çevrimiçi</div>
+                        </div>
+                    </div>
+
+                    <div class="timer-box">
+                        <div class="timer-label">AKTİF ÇALIŞMA SÜRESİ</div>
+                        <div class="timer-value" id="elapsedTimer">00:00:00</div>
+                        <div class="multiplier-tag" id="multiplierTag">4x Hız Çarpanı</div>
+                    </div>
+
+                    <button class="btn btn-danger" id="stopBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <rect x="6" y="6" width="12" height="12"></rect>
+                        </svg>
+                        Durdur & Çıkış Yap
+                    </button>
+                </div>
+
+                <!-- Steam Guard Modal Overlay / Box (if needed for password fallback) -->
+                <div id="guardBlock" class="guard-block hidden">
+                    <div class="guard-alert">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <div>
+                            <strong id="guardTitle">Doğrulama Kodu Gerekli</strong>
+                            <p id="guardSub">Lütfen gelen güvenlik kodunu girin:</p>
+                        </div>
+                    </div>
+                    <div class="guard-input-row">
+                        <input type="text" id="guardCodeInput" placeholder="KODU GİR" maxlength="7">
+                        <button class="btn btn-warning" id="submitGuardBtn">Onayla</button>
+                    </div>
+                </div>
+
+                <!-- Stats summary -->
+                <div class="quick-stats">
+                    <div class="stat-card">
+                        <div class="stat-num" id="statGameCount">0</div>
+                        <div class="stat-title">Aktif Oyun</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-num" id="statTotalHours">0.0h</div>
+                        <div class="stat-title">Bu Oturumdaki Toplam Kazanç</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Center Column: Games Manager & Account Library -->
+            <section class="card games-card">
+                <div class="card-header-row">
+                    <div>
+                        <h2 class="card-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                                <path d="M6 12h4m-2-2v4m8-2h.01m3 0h.01"></path>
+                            </svg>
+                            Saat Kasılacak Oyunlar (<span id="gameLimitCount">0</span>/32)
+                        </h2>
+                        <span class="card-hint">Giriş yaptığında hesabındaki tüm oyunlar otomatik çekilir. İstediğin oyunları tek tıkla seçip bırakabilirsin!</span>
+                    </div>
+
+                    <div class="header-actions">
+                        <button class="btn btn-secondary btn-sm" id="refreshLibBtn" title="Steam Kütüphanesini Yeniden Tara">
+                            🔄 Kütüphaneyi Yenile
+                        </button>
+                    </div>
+                </div>
+
+                <!-- View Switcher & Quick Actions -->
+                <div class="library-toolbar">
+                    <div class="lib-tabs">
+                        <button class="lib-tab-btn active" id="viewActiveBtn">Aktif Kasılacaklar (<span id="activeBadgeCount">0</span>)</button>
+                        <button class="lib-tab-btn" id="viewLibraryBtn">📚 Tüm Kütüphanem (<span id="totalLibCount">0</span> Oyun)</button>
+                    </div>
+
+                    <div class="quick-lib-actions">
+                        <button class="btn btn-primary btn-sm" id="selectTop32Btn">🔥 En Çok Oynanan 32'yi Seç</button>
+                        <button class="btn btn-ghost btn-sm" id="clearAllGamesBtn">Temizle</button>
+                    </div>
+                </div>
+
+                <!-- Search within Library or Add AppID -->
+                <div class="add-game-section">
+                    <div class="search-input-wrapper">
+                        <input type="text" id="gameSearchInput" placeholder="Kütüphanendeki oyunları ara veya yeni App ID gir...">
+                        <div id="searchResults" class="search-results hidden"></div>
+                    </div>
+                    <button class="btn btn-success" id="addGameBtn">+ App ID Ekle</button>
+                </div>
+
+                <!-- Empty Library Callout (Shown before login) -->
+                <div id="emptyLibBanner" class="empty-lib-banner">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    <div>
+                        <strong>Hesabına Giriş Yapıldığında Oyunların Otomatik Çekilecek</strong>
+                        <p>Sol taraftan Steam Mobile QR kodunu okuttuğun an, kütüphanendeki tüm oyunlar buraya listelenecek ve otomatik olarak saat kasmaya başlanacak!</p>
+                    </div>
+                </div>
+
+                <!-- Games Grid -->
+                <div class="games-grid" id="gamesGrid">
+                    <!-- Dynamic game cards -->
+                </div>
+            </section>
+
+            <!-- Bottom / Right Column: Live Console Logs -->
+            <section class="card logs-card">
+                <div class="card-header-row">
+                    <h2 class="card-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4 17 10 11 4 5"></polyline>
+                            <line x1="12" y1="19" x2="20" y2="19"></line>
+                        </svg>
+                        Canlı Sistem Günlüğü
+                    </h2>
+                    <button class="btn btn-ghost btn-sm" id="clearLogsBtn">Temizle</button>
+                </div>
+                <div class="terminal-window" id="terminalWindow">
+                    <!-- Logs entries -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
