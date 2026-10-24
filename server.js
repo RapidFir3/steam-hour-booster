@@ -105,6 +105,8 @@ function stopTicker() {
     }
 }
 
+let latestWebCookies = null;
+
 function createSteamClient() {
     if (client) {
         try {
@@ -137,9 +139,21 @@ function createSteamClient() {
 
         startTicker();
 
+        // Start Web session for store/community API access
+        try {
+            client.webLogOn();
+        } catch(e) {
+            console.error('webLogOn initial trigger error:', e.message);
+        }
+
         // Automatically fetch games in user library (including Family Sharing)
         await fetchUserLibrary();
         applyActiveGames();
+    });
+
+    client.on('webSession', (sessionID, cookies) => {
+        latestWebCookies = cookies;
+        addLog('Steam Web oturumu doğrulandı. Aile Paylaşımı erişimi aktif.', 'info');
     });
 
     // When steam-user issues or refreshes token
@@ -170,13 +184,11 @@ function createSteamClient() {
         let message = err.message || 'Bilinmeyen bir hata oluştu.';
 
         if (err.eresult === SteamUser.EResult.LoggedInElsewhere) {
-            // Steam desktop app or a game is active on the user's PC
             addLog(`Steam başka bir cihazda/oyunda aktif edildi (LoggedInElsewhere). Booster geçici olarak beklemeye alındı, birazdan otomatik bağlanacak...`, 'warning');
             updateBoosterState({
                 status: 'waiting_qr',
                 error: 'Başka bir yerde Steam oturumu açıldı (Geçici duraklatıldı).'
             });
-            // Try to reconnect gracefully after 30 seconds
             setTimeout(() => {
                 if (boosterState.status !== 'running' && savedConfig.refreshToken) {
                     addLog('Oturum tekrar kontrol ediliyor ve bağlanılıyor...', 'info');
@@ -222,11 +234,37 @@ function createSteamClient() {
 }
 
 async function getSteamWebCookies(steamClient) {
+    if (latestWebCookies && latestWebCookies.length > 0) {
+        return latestWebCookies;
+    }
+
     return new Promise((resolve) => {
-        steamClient.getWebCookies((err, cookies) => {
-            if (err || !cookies || !cookies.length) return resolve(null);
-            resolve(cookies);
+        let finished = false;
+        const timer = setTimeout(() => {
+            if (!finished) {
+                finished = true;
+                resolve(latestWebCookies || null);
+            }
+        }, 10000);
+
+        steamClient.once('webSession', (sessionID, cookies) => {
+            latestWebCookies = cookies;
+            if (!finished) {
+                finished = true;
+                clearTimeout(timer);
+                resolve(cookies);
+            }
         });
+
+        try {
+            steamClient.webLogOn();
+        } catch(e) {
+            if (!finished) {
+                finished = true;
+                clearTimeout(timer);
+                resolve(null);
+            }
+        }
     });
 }
 
@@ -242,7 +280,10 @@ async function getSteamFamiliesAppIds(cookies) {
         });
         const configJson = await configResp.json();
         const webapiToken = configJson?.data?.webapi_token || configJson?.webapi_token;
-        if (!webapiToken) return [];
+        if (!webapiToken) {
+            console.log('webapi_token not found in ajaxgetasyncconfig response');
+            return [];
+        }
 
         const sharedUrl = `https://api.steampowered.com/IFamilyGroupsService/GetSharedLibraryApps/v1/?access_token=${encodeURIComponent(webapiToken)}&family_groupid=0&include_own=true&include_free=false`;
         const sharedResp = await fetch(sharedUrl);
