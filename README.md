@@ -1,76 +1,72 @@
-# Steam Simultaneous Hour Booster ⚡
+# steam-hour-booster
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Node.js-v18%2B-green.svg" alt="Node Version">
-  <img src="https://img.shields.io/badge/Steam-QR%20Auth-blue.svg" alt="Steam Auth">
-  <img src="https://img.shields.io/badge/Games-Up%20to%2032%20Simultaneous-orange.svg" alt="Simultaneous Games">
-  <img src="https://img.shields.io/badge/License-MIT-purple.svg" alt="License">
-</p>
-
-A modern, full-featured web-based **Steam Hour Booster & Multi-Game Idler**. It connects directly to Steam's official network without requiring you to download, install, or run games locally.
-
-Boost playing hours on up to **32 Steam games simultaneously** (1 hour real-time = 32 hours total gain) with zero PC performance impact!
+[English](#english) | [Türkçe](#türkçe)
 
 ---
 
-## 🌟 Key Features
+## English
 
-- 📱 **Steam Mobile QR Login:** No need to type passwords or 2FA codes. Simply scan the dynamic QR code with the Steam Mobile App and tap "Sign In".
-- 🎮 **Automatic Library Sync:** Automatically fetches all games owned on your account (with official box art, playtime, and titles) upon login.
-- 🔥 **Simultaneous Multi-Idling:** Steam allows up to 32 apps to be run in one session. Boost 10 games = 10 hours added to your profile every hour!
-- ⚡ **Auto-Pause & Smart Resume:** If you launch a game on your PC, the booster detects it, pauses gracefully so you don't experience disconnects or lag, and automatically resumes once you exit your game.
-- 💬 **Custom Status Message:** Display custom non-Steam text or motivational tags across your Steam presence.
-- ⏱️ **Live Dashboard:** WebSocket-powered real-time counter, connection logs, and total playtime gains.
-- 🖥️ **7/24 VDS & VPS Ready:** Lightweight, self-contained, and includes one-click Windows Server setup scripts with PM2 auto-restart on boot.
+Lightweight, self-hosted web tool to boost hours on multiple Steam games simultaneously without downloading them. Uses Node.js, `steam-user`, and `steam-session`.
 
----
+Designed to be dead simple: scan the QR code with your Steam Mobile app, pick the games from your library, and let it run in the background or on a 24/7 VDS.
 
-## 🚀 Quick Start (Local PC)
+### Features
+- **Parallel Idling:** Idles up to 32 games at the same time (Steam's client limit). 1 hour running = 1 hour added to every selected game.
+- **Steam Mobile QR Login:** No need to type passwords or 2FA codes manually. Just point your Steam mobile app camera and approve. Saves session token locally so you don't scan every time.
+- **Auto Library Fetch:** Grabs your owned games with titles and box art automatically upon login—no manual AppID hunting.
+- **Smart Pause & Auto-Resume:** If you open a game on your PC, the booster detects it, pauses gracefully so you don't get disconnected, and resumes once you quit your game.
+- **Custom Status:** Set a custom non-Steam presence text on your profile.
+- **VDS / 24-7 Ready:** Runs fine on local machine or as a background service on a Windows Server VDS.
 
-### 1. Clone the repository
+### Setup
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/steam-hour-booster.git
+git clone https://github.com/RapidFir3/steam-hour-booster.git
 cd steam-hour-booster
-```
-
-### 2. Install dependencies
-```bash
 npm install
-```
-
-### 3. Run the application
-```bash
-# Windows double-click:
-start.bat
-
-# Or via terminal:
 node server.js
 ```
 
-### 4. Open the Web Dashboard
-Navigate to `http://localhost:3456` in your web browser.
+Open `http://localhost:3456` in your browser. (On Windows, you can also just double-click `start.bat`).
+
+### Windows Server (VDS) Setup
+1. Copy the folder to your VDS.
+2. Right click `setup_vds.bat` and run as Administrator (opens firewall port 3456 and sets up PM2 auto-restart).
+3. Access your dashboard from `http://YOUR_VDS_IP:3456`.
 
 ---
 
-## ☁️ 24/7 Deployment on Windows Server (VDS / VPS)
+## Türkçe
 
-1. Copy the project folder to your Windows Server.
-2. Install Node.js (LTS) from [nodejs.org](https://nodejs.org).
-3. Right-click **`setup_vds.bat`** and choose **"Run as Administrator"**:
-   - Opens port `3456` in Windows Firewall.
-   - Configures **PM2** background service to automatically start on server reboot.
-4. Access your panel remotely from any phone or PC at `http://YOUR_VDS_IP:3456`.
+Oyunları indirmeden veya bilgisayarı yormadan aynı anda birden fazla Steam oyununda saat kasmak için geliştirilmiş hafif, web arayüzlü bir idler aracı. `steam-user` ve `steam-session` kullanılarak yazıldı.
+
+Kullanımı olabildiğince pratik tutuldu: Steam Mobile uygulamasından QR kodunu okutuyorsun, kütüphanendeki oyunlar otomatik listeleniyor ve arkada saat kasmaya başlıyor.
+
+### Özellikler
+- **Eşzamanlı Saat Kasma:** Steam protokolünün izin verdiği maksimum sınır olan 32 oyuna kadar aynı anda saat kasar (1 saat açık kaldığında seçtiğin tüm oyunlara 1'er saat eklenir).
+- **Steam Mobile QR Girişi:** Şifre veya 2FA kodu yazmaya gerek kalmadan telefonundaki Steam uygulamasından QR okutarak tek tıkla bağlanır. Oturum anahtarını yerel olarak kaydeder, her seferinde tekrar okutmak gerekmez.
+- **Otomatik Kütüphane Çekme:** Giriş yaptığında hesabındaki oyunlar afişleri ve isimleriyle birlikte otomatik listelenir. Tek tek App ID aramakla uğraşmazsın.
+- **Akıllı Duraklatma (Smart Auto-Resume):** Sen kendi bilgisayarından bir oyuna girdiğinde booster bunu algılar ve seni oyundan atmamak için geçici olarak duraklar. Sen oyundan çıktığında yaklaşık 30 saniye içinde otomatik olarak kaldığı yerden saat kasmaya devam eder.
+- **Özel Durum Metni:** Profiline özel "Steam Dışı Oyunda: ..." durum mesajı yazabilirsin.
+- **VDS / 7-24 Uyumlu:** İster kendi bilgisayarında çalıştır, ister Windows Server VDS'inde arka planda 7/24 kesintisiz çalıştır.
+
+### Kurulum (Yerel PC)
+
+```bash
+git clone https://github.com/RapidFir3/steam-hour-booster.git
+cd steam-hour-booster
+npm install
+node server.js
+```
+
+Tarayıcıdan `http://localhost:3456` adresine gir. Windows'ta doğrudan `start.bat` dosyasına çift tıklayarak da açabilirsin.
+
+### Windows Server (VDS) Kurulumu
+1. Proje klasörünü VDS'ine kopyala.
+2. `setup_vds.bat` dosyasına sağ tıklayıp Yönetici olarak çalıştır (Güvenlik duvarında 3456 portunu açar ve VDS yeniden başlasa bile arkada çalışması için PM2 servisini kurar).
+3. Kendi bilgisayarından veya telefonundan `http://VDS_IP_ADRESIN:3456` adresine girerek paneli yönet.
 
 ---
 
-## 🛡️ Security & Privacy
-
-- **Your credentials stay local:** All authentication tokens (`refreshToken`) are stored strictly inside your local `config.json` on your own machine/server.
-- **No external third-party servers:** The backend communicates directly with official Valve Steam servers via `steam-user` and `steam-session`.
-- **Open Source:** Full code transparency.
-
----
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+### License
+MIT
